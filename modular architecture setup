@@ -1,0 +1,210 @@
+Modular Architecture Setup
+A modular architecture divides an application into separate modules based on responsibility. Each module handles a specific part of the application, which improves maintainability, testing, scalability, and code reuse.
+
+Project Structure
+fastapi_project/
+├── app/
+│   ├── main.py
+│   ├── core/
+│   │   └── config.py
+│   ├── models/
+│   │   └── user.py
+│   ├── schemas/
+│   │   └── user.py
+│   ├── repositories/
+│   │   └── user_repository.py
+│   ├── services/
+│   │   └── user_service.py
+│   └── routes/
+│       └── user_routes.py
+│
+└── tests/
+    └── test_users.py
+
+1. Application Entry Point
+# app/main.py
+
+from fastapi import FastAPI
+from app.routes.user_routes import router as user_router
+
+app = FastAPI(
+    title="Modular FastAPI Application",
+    version="1.0.0"
+)
+
+app.include_router(user_router)
+
+
+@app.get("/")
+def root():
+    return {"message": "API is running"}
+
+2. Model
+The model represents the application's data.
+
+# app/models/user.py
+
+from dataclasses import dataclass
+
+
+@dataclass
+class User:
+    id: int
+    name: str
+    email: str
+
+3. Schema
+Schemas define the structure of API input and output.
+
+# app/schemas/user.py
+
+from pydantic import BaseModel, EmailStr
+
+
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr
+
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+
+4. Repository
+The repository handles data access.
+
+# app/repositories/user_repository.py
+
+from app.models.user import User
+
+
+users: list[User] = []
+
+
+def create_user(user: User) -> User:
+    users.append(user)
+    return user
+
+
+def get_user(user_id: int) -> User | None:
+    return next(
+        (user for user in users if user.id == user_id),
+        None
+    )
+
+5. Service
+The service contains business logic.
+
+# app/services/user_service.py
+
+from app.models.user import User
+from app.repositories.user_repository import create_user, get_user
+from app.schemas.user import UserCreate
+
+
+def create_new_user(data: UserCreate) -> User:
+    user = User(
+        id=1,
+        name=data.name,
+        email=data.email
+    )
+
+    return create_user(user)
+
+
+def find_user(user_id: int) -> User | None:
+    return get_user(user_id)
+
+6. Routes
+Routes handle HTTP requests and responses.
+
+# app/routes/user_routes.py
+
+from fastapi import APIRouter, HTTPException
+
+from app.schemas.user import UserCreate, UserResponse
+from app.services.user_service import create_new_user, find_user
+
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"]
+)
+
+
+@router.post("/", response_model=UserResponse)
+def create_user(data: UserCreate):
+    return create_new_user(data)
+
+
+@router.get("/{user_id}", response_model=UserResponse)
+def get_user(user_id: int):
+    user = find_user(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return user
+
+7. Route Tests
+# tests/test_users.py
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+client = TestClient(app)
+
+
+def test_create_user():
+    response = client.post(
+        "/users/",
+        json={
+            "name": "John",
+            "email": "john@example.com"
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "John"
+
+
+def test_get_user():
+    response = client.get("/users/1")
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "john@example.com"
+
+Architecture Flow
+Client
+  │
+  ▼
+Routes
+  │
+  ▼
+Services
+  │
+  ▼
+Repositories
+  │
+  ▼
+Database
+
+Benefits
+Routes handle HTTP requests.
+
+Services handle business logic.
+
+Repositories handle data access.
+
+Schemas validate API data.
+
+Models represent application data.
+
+Tests verify individual modules.
+
+This separation keeps the FastAPI application modular, reusable, testable, and easier to maintain.
