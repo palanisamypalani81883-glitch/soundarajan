@@ -1,0 +1,93 @@
+Define FastAPI Routes
+FastAPI routes define the API endpoints that a client can access. Each route maps an HTTP method such as GET, POST, PUT, or DELETE to a Python function.
+
+Example Project Structure
+project/
+├── app/
+│   ├── main.py
+│   └── routes/
+│       └── users.py
+└── tests/
+    └── test_users.py
+
+1. Define the FastAPI Route
+# app/routes/users.py
+
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/users", tags=["Users"])
+
+
+@router.get("/{user_id}")
+def get_user(user_id: int):
+    return {
+        "id": user_id,
+        "name": "John"
+    }
+
+
+@router.post("/")
+def create_user(name: str):
+    return {
+        "message": "User created",
+        "name": name
+    }
+
+2. Register the Routes
+# app/main.py
+
+from fastapi import FastAPI
+from app.routes.users import router as user_router
+
+app = FastAPI()
+
+app.include_router(user_router)
+
+The application now provides:
+
+GET  /users/{user_id}
+POST /users/
+
+3. Test the FastAPI Routes
+FastAPI can be tested using TestClient.
+
+# tests/test_users.py
+
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_get_user():
+    response = client.get("/users/1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": 1,
+        "name": "John"
+    }
+
+
+def test_create_user():
+    response = client.post(
+        "/users/",
+        params={"name": "Alice"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Alice"
+
+4. Run the Tests
+pytest
+
+Summary
+Route definition: Maps an HTTP request to a Python function.
+
+APIRouter: Keeps routes modular and organized.
+
+include_router(): Registers a router with the FastAPI application.
+
+TestClient: Sends test HTTP requests to the FastAPI application.
+
+pytest: Executes the route tests.
